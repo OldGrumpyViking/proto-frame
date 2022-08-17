@@ -12,6 +12,7 @@ class Frame(pf_core.BaseFrame):
     def to_bytes(self) -> bytes:
         return self.payload
 
+
 class TestFrame:
     def test_bytes(self):
         res = bytes(range(10))

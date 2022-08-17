@@ -6,7 +6,7 @@ class BaseFrame(abc.ABC):
 
     def __repr__(self):
         """Please provide a more friendly representation of the frame.
-        
+
         Returns:
             A pretty representation of the frame.
         """
@@ -27,8 +27,8 @@ class BaseFrame(abc.ABC):
 
     @classmethod
     def from_hex(cls, frame_hex: str):
-        """ Parse the frame from a hex format.
-        
+        """Parse the frame from a hex format.
+
         Args:
             frame_hex: The frame to parse.
 
@@ -43,8 +43,8 @@ class BaseFrame(abc.ABC):
 
     @classmethod
     def from_bin(cls, frame_bin: str):
-        """ Parse the frame from a binary format.
-        
+        """Parse the frame from a binary format.
+
         Args:
             frame_bin: The frame to parse.
 
@@ -57,7 +57,7 @@ class BaseFrame(abc.ABC):
 
     @abc.abstractmethod
     def to_bytes(self) -> bytes:
-        """ Converts the frame to bytes.
+        """Converts the frame to bytes.
 
         Returns:
             The frame as bytes.
@@ -65,28 +65,26 @@ class BaseFrame(abc.ABC):
         return b""
 
     def to_hex(self, prefix: bool = False) -> str:
-        """Return the raw frame as a hex representation
+        """Return the raw frame as a hex representation.
 
         Args:
             prefix: Indicates if the hex string should have a "0x" prefix.
 
         Returns:
             The frame as hex.
-        
         """
         if prefix:
             return f"0x{self.to_bytes().hex().upper()}"
         return self.to_bytes().hex().upper()
 
     def to_bin(self, prefix: bool = False) -> str:
-        """Return the raw frame as a binary representation
+        """Return the raw frame as a binary representation.
 
         Args:
             prefix: Indicates if the bits should have a "0b" prefix.
 
         Returns:
             The frame as bits.
-        
         """
         frame_bytes = self.to_bytes()
         if prefix:

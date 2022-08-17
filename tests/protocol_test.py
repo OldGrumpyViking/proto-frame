@@ -1,5 +1,6 @@
-from tests.frame_test import Frame
 from proto_frame.core import BaseProtocol
+from tests.frame_test import Frame
+
 
 class TestProtocol:
     def setup(self):

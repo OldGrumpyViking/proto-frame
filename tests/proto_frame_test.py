@@ -8,4 +8,3 @@ def test_version():
     """Tests that the different ways of getting the version of the package is working."""
     assert importlib.metadata.version("proto_frame") == pf_core.__version__
     assert importlib.metadata.version("proto_frame") == pf_lorawan.__version__
-    
