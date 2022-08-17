@@ -66,8 +66,7 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = [
-  "src/proto_frame.core",
-  "src/proto_frame.lorawan",
+  "src/proto_frame",
   ]
 
 [tool.hatch.version]
@@ -208,6 +207,7 @@ update = "pip uninstall -r pip.lock -y && pip install -e . && pip check && pip f
 
 ## Minimal CI specific environments
 [tool.hatch.envs.test]
+dev-mode = false
 features = [
   "test",
 ]
