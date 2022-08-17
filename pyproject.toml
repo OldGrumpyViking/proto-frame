@@ -64,6 +64,12 @@ Source = "https://github.com/OldGrumpyViking/proto-frame"
 requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
 
+[tool.hatch.build.targets.wheel]
+packages = [
+  "src/proto_frame.core",
+  "src/proto_frame.lorawan",
+  ]
+
 [tool.hatch.version]
 source = "vcs"
 
