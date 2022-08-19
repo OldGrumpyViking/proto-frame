@@ -1,4 +1,4 @@
-from typing import Iterable
+from typing import Iterable, Optional
 
 
 class BaseProtocol:
@@ -24,22 +24,24 @@ class BaseProtocol:
             + [frame.__repr__().replace("\n", "\n\t") for frame in self.frames]
         )
 
-    def to_bytes(self, layer: int = 0) -> bytes:
+    def to_bytes(self, layer: Optional[int] = None) -> bytes:
         """Return the raw frame as bytes.
 
         Args:
-            layer: The protocol layer to return as bytes. 0 is the lowest layer.
+            layer: The protocol layer to return as bytes. None will select the lowest layer.
 
         Returns:
             The protocol as bytes given the layer tier.
         """
+        if layer is None:
+            layer = len(self.frames)-1
         if layer < 0:
             raise ValueError(f"layer cannot be negative. Got {layer=}")
-        if layer > len(self.frames):
-            raise ValueError(f"layer cannot be higher than the number of frames. Got {layer=}")
-        return b"".join([frame.to_bytes() for frame in self.frames[layer:]])
+        if layer >= len(self.frames):
+            raise ValueError(f"layer cannot be higher or equal to the number of frames. Got {layer=}")
+        return self.frames[layer].to_bytes()
 
-    def to_hex(self, layer: int = 0, prefix: bool = False) -> str:
+    def to_hex(self, layer: Optional[int] = None, prefix: bool = False) -> str:
         """Return the raw frame as a hex representation.
 
         Args:
@@ -52,7 +54,7 @@ class BaseProtocol:
             return f"0x{self.to_bytes(layer).hex().upper()}"
         return self.to_bytes(layer).hex().upper()
 
-    def to_bin(self, layer: int = 0, prefix: bool = False) -> str:
+    def to_bin(self, layer: Optional[int] = None, prefix: bool = False) -> str:
         """Return the raw frame as a binary representation.
 
         Args:
