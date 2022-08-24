@@ -9,12 +9,21 @@ class TestProtocol:
         self.frame2 = LengthFrame(self.frame1)
         self.frame3 = LengthFrame(self.frame2)
         self.protocol = BaseProtocol((self.frame1, self.frame2, self.frame3))
+        self.raw = bytes((11, 10)) + self.payload
 
-    def test_bytes(self):
+    def test_to_bytes(self):
         print("protocol:", self.protocol.to_bytes().hex())
-        print("test_vector:", (bytes((10, 11)) + self.payload).hex())
-        assert self.protocol.to_bytes() == bytes((11, 10)) + self.payload
+        print("test_vector:", self.raw.hex())
+        assert self.protocol.to_bytes() == self.raw
+        # assert 0
 
     def test_repr(self):
         print(self.protocol)
         assert str(self.protocol)
+        # assert 0
+
+    def test_from_bytes(self):
+        protocol = BaseProtocol.from_bytes(self.raw, (LengthFrame, ("payload", LengthFrame), ("payload", SimpleFrame)))
+        print(protocol)
+        assert protocol.to_bytes() == self.raw
+        # assert 0

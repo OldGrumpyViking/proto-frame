@@ -1,5 +1,7 @@
 from typing import Iterable, Optional
 
+from proto_frame.core.frames import BaseFrame
+
 
 class BaseProtocol:
     """Base protocol structure as a collection of frames.
@@ -19,7 +21,7 @@ class BaseProtocol:
         """
         return "\n\t".join(
             [
-                self.__class__.__name__,
+                f"{self.__class__.__name__}: ({self.to_bytes().hex().upper()})",
             ]
             + [frame.__repr__().replace("\n", "\n\t") for frame in self.frames]
         )
@@ -67,3 +69,20 @@ class BaseProtocol:
         if prefix:
             return f"0b{format(int.from_bytes(frame_bytes, byteorder='big'), f'0{len(frame_bytes)*8}b')}"
         return format(int.from_bytes(frame_bytes, byteorder="big"), f"0{len(frame_bytes)*8}b")
+
+    @classmethod
+    def from_bytes(cls, proto_bytes, parse_tree):
+        frames = []
+        for layer in parse_tree:
+            if isinstance(layer, tuple):
+                if len(layer) != 2:
+                    raise NotImplementedError("Only traceback with 1 dynamic field allowed.")
+                field, frame = layer
+                frame = frame.from_bytes(frames[-1].__dict__[field])
+                frames[-1].__dict__[field] = frame
+            elif issubclass(layer, BaseFrame):
+                frame = layer.from_bytes(proto_bytes)
+            else:
+                raise NotImplementedError(f"Only BaseFrames and tuples if size 2 allowed in traceback. Got {layer=}{type(layer)=}")
+            frames.append(frame)
+        return cls(frames[::-1])

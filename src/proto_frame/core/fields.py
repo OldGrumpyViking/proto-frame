@@ -1,5 +1,5 @@
-import abc
 import enum
+import abc
 
 
 class Order(enum.Enum):
@@ -15,151 +15,99 @@ class Unit(enum.Enum):
 
 
 class BaseField(abc.ABC):
-    """Base field for the field structure."""
-    BIT_LENGTH = 8
-    BIT_ORDER = Order.BIG.value
-    SIGNED = False
-    REPR_UNIT = Unit.HEX
-
-    def __repr__(self) -> str:
-        """Please provide a more friendly representation of the field.
-
-        Returns:
-            A pretty representation of the field.
-        """
-        output = f"{self.__class__.__name__}: "
-        if self.REPR_UNIT == Unit.BYTES:
-            output += f"{self.to_bytes()}"
-        elif self.REPR_UNIT == Unit.HEX:
-            output += f"{self.to_hex(prefix=True)}"
-        elif self.REPR_UNIT == Unit.BIN:
-            output += f"{self.to_bin(prefix=True)}"
-        elif self.REPR_UNIT == Unit.INT:
-            output += f"{self.to_int()}"
-        else:
-            raise ValueError(f"Unknown {self.REPR_UNIT=}")
-        return output
-
-    @classmethod
-    def byte_length(cls) -> int:
-        return (cls.BIT_LENGTH + 7) // 8
-
-    @classmethod
-    @abc.abstractmethod
-    def from_bytes(cls, field_bytes: bytes):
-        """Create the field object from bytes.
-
-        Args:
-            field_bytes: The field to parse.
-
-        Returns:
-            The class object created from the raw bytes.
-        """
-        return cls()
-
-    @classmethod
-    def from_hex(cls, field_hex: str):
-        """Parse the field from a hex format.
-
-        Args:
-            field_hex: The field to parse.
-
-        Returns:
-            The class object created from the raw hex string.
-        """
-        if len(field_hex) % 2:
-            raise ValueError("Hex string must be even number of chars.")
-        if field_hex.startswith("0x"):
-            field_hex = field_hex[2:]
-        return cls.from_bytes(bytes.fromhex(field_hex, ))
-
-    @classmethod
-    def from_bin(cls, field_bin: str):
-        """Parse the field from a binary format.
-
-        Args:
-            field_bin: The field to parse.
-
-        Returns:
-            The class object created from the raw binary string.
-        """
-        if field_bin.startswith("0b"):
-            field_bin = field_bin[2:]
-        return cls.from_bytes(int(field_bin, 2).to_bytes((len(field_bin) + 7) // 8, byteorder=cls.BIT_ORDER, signed=cls.SIGNED))
-
-    @classmethod
-    def from_int(cls, field_int: int):
-        return cls.from_bytes(field_int.to_bytes((cls.BIT_LENGTH + 7) // 8, byteorder=cls.BIT_ORDER, signed=cls.SIGNED))
-
-    @abc.abstractmethod
-    def to_bytes(self) -> bytes:
-        """Converts the field to bytes.
-
-        Returns:
-            The field as bytes.
-        """
-        return b""
-
-    def to_hex(self, prefix: bool = False) -> str:
-        """Return the raw field as a hex representation.
-
-        Args:
-            prefix: Indicates if the hex string should have a "0x" prefix.
-
-        Returns:
-            The field as hex.
-        """
-        if prefix:
-            return f"0x{self.to_bytes().hex().upper()}"
-        return self.to_bytes().hex().upper()
-
-    def to_bin(self, prefix: bool = False) -> str:
-        """Return the raw field as a binary representation.
-
-        Args:
-            prefix: Indicates if the bits should have a "0b" prefix.
-
-        Returns:
-            The field as bits.
-        """
-        field_bytes = self.to_bytes()
-        if prefix:
-            return f"0b{format(int.from_bytes(field_bytes, byteorder=self.BIT_ORDER, signed=self.SIGNED), f'0{len(field_bytes)*8}b')}"
-        return format(int.from_bytes(field_bytes, byteorder=self.BIT_ORDER, signed=self.SIGNED), f"0{len(field_bytes)*8}b")
-
-    def to_int(self) -> int:
-        """ Converts the field to an integer.
-
-        Returns:
-            An integer representation of the field
-        """
-        return int.from_bytes(self.to_bytes(), byteorder=self.BIT_ORDER, signed=self.SIGNED)
+    pass
 
 
-class LengthField(BaseField):
-    REPR_UNIT = Unit.INT
+def make_field(name: str, value_unit=Unit.BYTES, bit_len=8, bit_order=Order.BIG, signed=False, repr_unit=Unit.HEX):
+    class Field(BaseField):
+        NAME = name
+        VALUE_UNIT = value_unit
+        BIT_LEN = bit_len
+        BYTE_LEN = (bit_len + 7) // 8
+        BIT_ORDER = bit_order
+        SIGNED = signed
+        REPR_UNIT = repr_unit
 
-    def __init__(self, length: int):
-        if length >= 2**(self.BIT_LENGTH):
-            raise ValueError(f"Length is too large, max allowed is {2**(self.BIT_LENGTH)-1}: {length=}")
-        self.length = length
+        def __init__(self, value, unit=value_unit):
+            if callable(value):
+                self._value = value
+                self._callable_unit = unit
+            else:
+                self._value = self._transform_unit(value, unit, self.VALUE_UNIT)
+                self._callable_unit = None
+            self.verify_bit_size(self._value)
 
-    @classmethod
-    def from_bytes(cls, length_bytes: bytes):
-        """Create the field object from bytes.
+        def __repr__(self) -> str:
+            return f"{self.__class__.__name__}-{self.NAME}: {self.as_unit(self.REPR_UNIT, prefix=True)}"
 
-        Args:
-            field_bytes: The field to parse.
+        @staticmethod
+        def _transform_unit(value, from_unit, to_unit):
+            if from_unit == to_unit:
+                return value
+            # Always transform to bytes
+            if from_unit != Unit.BYTES:
+                if from_unit == Unit.HEX:
+                    value = bytes.fromhex(value)
+                elif from_unit == Unit.BIN:
+                    value = int(value, 2).to_bytes(Field.BYTE_LEN, byteorder=Field.BIT_ORDER.value, signed=Field.SIGNED)
+                elif from_unit == Unit.INT:
+                    value = value.to_bytes(Field.BYTE_LEN, byteorder=Field.BIT_ORDER.value, signed=Field.SIGNED)
+                else:
+                    raise NotImplementedError(f"Unit unknwon: {from_unit=}")
+            # Convert bytes to the desired unit
+            if to_unit != Unit.BYTES:
+                if to_unit == Unit.HEX:
+                    value = value.hex().upper()
+                elif to_unit == Unit.BIN:
+                    value = format(int.from_bytes(value, byteorder=Field.BIT_ORDER.value, signed=Field.SIGNED), f"0{len(value)*8}b")
+                elif to_unit == Unit.INT:
+                    value = int.from_bytes(value, byteorder=Field.BIT_ORDER.value, signed=Field.SIGNED)
+                else:
+                    raise NotImplementedError(f"Unit unknwon: {to_unit=}")
+            return value
 
-        Returns:
-            The class object created from the raw bytes.
-        """
-        return cls(int.from_bytes(length_bytes, byteorder=cls.BIT_ORDER, signed=cls.SIGNED))
+        def verify_bit_size(self, value):
+            if callable(value):
+                value = self._transform_unit(value(), self._callable_unit, Unit.INT)
+            else:
+                value = self._transform_unit(value, self.VALUE_UNIT, Unit.INT)
+            if self.SIGNED:
+                if not (-2**self.BIT_LEN //2) <= value < (2**self.BIT_LEN // 2):
+                    raise ValueError(f"{value=} not within {self.BIT_LEN=}")
+            else:
+                if not 0 <= value < 2**self.BIT_LEN:
+                    raise ValueError(f"{value=} not within {self.BIT_LEN=}")
 
-    def to_bytes(self) -> bytes:
-        """Converts the field to bytes.
+        @property
+        def value(self):
+            if callable(self._value):
+                return self._transform_unit(self._value(), self._callable_unit, self.VALUE_UNIT)
+            return self._value
 
-        Returns:
-            The field as bytes.
-        """
-        return bytes((self.length,))
+        def as_unit(self, unit: Unit, prefix=False):
+            if callable(self._value):
+                value = self._transform_unit(self._value(), self._callable_unit, unit)
+            else:
+                value = self._transform_unit(self._value, self.VALUE_UNIT, unit)
+            if prefix:
+                if unit == Unit.HEX:
+                    value = f"0x{value}"
+                if unit == Unit.BIN:
+                    value = f"0b{value}"
+            return value
+    return Field
+
+if __name__ == "__main__":
+    MyField = make_field("length", Unit.INT, repr_unit=Unit.INT)
+    a = MyField(10, Unit.INT)
+    print(a)
+    b = MyField(10)
+    print(b)
+    print(a.as_unit(Unit.HEX, prefix=True))
+    print(a.value)
+    # c = MyField(300)
+    d = [1,2,3]
+    e = MyField(d.__len__)
+    print(d, e)
+    d.append(4)
+    print(d, e)

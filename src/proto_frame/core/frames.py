@@ -1,24 +1,35 @@
 import abc
 from typing import Union
 
-import proto_frame.core.fields as pf_fields
+from proto_frame.core.fields import make_field, Unit, BaseField
 
 
 class FrameParseError(Exception):
     """ Thrown when one of the from_unit methods fail to parse the input."""
-    pass
 
 
 class BaseFrame(abc.ABC):
     """Base frame for the frame structure."""
+    FIELDS = ()
 
     def __repr__(self) -> str:
-        """Please provide a more friendly representation of the frame.
+        output = [f"{self.__class__.__name__}: ({self.to_bytes().hex().upper()})", ]
+        for field in self.FIELDS:
+            value = self.__dict__[field]
+            if isinstance(value, bytes):
+                output.append(f"{field}: 0x{value.hex().upper()}")
+            elif isinstance(value, str):
+                output.append(f"{field}: {value}")
+            elif isinstance(value, BaseFrame):
+                output.append(f"{field}: <^{value.__class__.__name__}>")
+            elif isinstance(value, BaseField):
+                output.append(f"{str(value)}")
+            else:
+                raise NotImplementedError(f"Unknown type of {field=}: {type(value)=}")
+        return "\n\t".join(output)
 
-        Returns:
-            A pretty representation of the frame.
-        """
-        return f"{self.__class__.__name__}: {self.to_hex(prefix=True)}"
+    def __len__(self):
+        return len(self.to_bytes())
 
     @classmethod
     @abc.abstractmethod
@@ -63,14 +74,24 @@ class BaseFrame(abc.ABC):
             frame_bin = frame_bin[2:]
         return cls.from_bytes(int(frame_bin, 2).to_bytes((len(frame_bin) + 7) // 8, byteorder="big"))
 
-    @abc.abstractmethod
     def to_bytes(self) -> bytes:
         """Converts the frame to bytes.
 
         Returns:
             The frame as bytes.
         """
-        return b""
+        output = b""
+        for field in self.FIELDS:
+            value = self.__dict__[field]
+            if isinstance(value, bytes):
+                output += value
+            elif isinstance(value, BaseFrame):
+                output += value.to_bytes()
+            elif isinstance(value, BaseField):
+                output += value.as_unit(Unit.BYTES)
+            else:
+                raise NotImplementedError(f"Unknown type of {field=}: {type(value)=}")
+        return output
 
     def to_hex(self, prefix: bool = False) -> str:
         """Return the raw frame as a hex representation.
@@ -101,60 +122,28 @@ class BaseFrame(abc.ABC):
 
 
 class SimpleFrame(BaseFrame):
+    FIELDS = ("payload", )
+
     def __init__(self, payload: Union[bytes, BaseFrame]):
-        self._payload = payload
-
-    def __repr__(self) -> str:
-        output = [f"{self.__class__.__name__}:", ]
-        if isinstance(self._payload, BaseFrame):
-            output.append(f"<^{self._payload.__class__.__name__}>")
-        else:
-            output.append(f"{self.to_hex(prefix=True)}")
-        return "\n\t".join(output)
-
-    @property
-    def payload(self) -> bytes:
-        if isinstance(self._payload, BaseFrame):
-            return self._payload.to_bytes()
-        return self._payload
-
-    @payload.setter
-    def payload(self, payload: Union[bytes, BaseFrame]):
-        self._payload = payload
+        self.payload = payload
 
     @classmethod
     def from_bytes(cls, frame_bytes: bytes):
         return cls(frame_bytes)
 
-    def to_bytes(self) -> bytes:
-        return self.payload
 
+class LengthFrame(BaseFrame):
+    FIELDS = ("length_field", "payload", )
+    LEN_FIELD = make_field("length", Unit.INT, repr_unit=Unit.INT)
 
-class LengthFrame(SimpleFrame):
-    LEN_FIELD = pf_fields.LengthField
-
-    def __repr__(self) -> str:
-        output = [f"{self.__class__.__name__}:", ]
-        output.append(str(self.length_field))
-        if isinstance(self._payload, BaseFrame):
-            output.append(f"<^{self._payload.__class__.__name__}>")
-        else:
-            output.append(f"{self.to_hex(prefix=True)}")
-        return "\n\t".join(output)
-
-    @property
-    def length_field(self) -> pf_fields.BaseField:
-        return self.LEN_FIELD(len(self.payload))
+    def __init__(self, payload: Union[bytes, BaseFrame]):
+        self.payload = payload
+        self.length_field = self.LEN_FIELD(self.payload.__len__)
 
     @classmethod
     def from_bytes(cls, frame_bytes: bytes):
-        len_field_len = cls.LEN_FIELD.byte_length()
-        length = frame_bytes[:len_field_len]
-        len_field = cls.LEN_FIELD.from_bytes(length)
-        payload = frame_bytes[len_field_len:]
-        if len_field.to_int != len(payload):
-            raise FrameParseError(f"Length and Payload length do not match: {len_field.to_int=} {len(payload)=}")
+        length_field = cls.LEN_FIELD(frame_bytes[:cls.LEN_FIELD.BYTE_LEN], Unit.BYTES)
+        payload = frame_bytes[cls.LEN_FIELD.BYTE_LEN:]
+        if length_field.value != len(payload):
+            raise FrameParseError(f"Length and Payload length do not match: {length_field.value=} {len(payload)=}")
         return cls(payload)
-
-    def to_bytes(self) -> bytes:
-        return self.length_field.to_bytes() + self.payload
