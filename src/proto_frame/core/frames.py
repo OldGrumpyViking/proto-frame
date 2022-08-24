@@ -1,19 +1,22 @@
 import abc
 from typing import Union
 
-from proto_frame.core.fields import make_field, Unit, BaseField
+from proto_frame.core.fields import BaseField, Unit, make_field
 
 
 class FrameParseError(Exception):
-    """ Thrown when one of the from_unit methods fail to parse the input."""
+    """Thrown when one of the from_unit methods fail to parse the input."""
 
 
 class BaseFrame(abc.ABC):
     """Base frame for the frame structure."""
+
     FIELDS = ()
 
     def __repr__(self) -> str:
-        output = [f"{self.__class__.__name__}: ({self.to_bytes().hex().upper()})", ]
+        output = [
+            f"{self.__class__.__name__}: ({self.to_bytes().hex().upper()})",
+        ]
         for field in self.FIELDS:
             value = self.__dict__[field]
             if isinstance(value, bytes):
@@ -122,7 +125,7 @@ class BaseFrame(abc.ABC):
 
 
 class SimpleFrame(BaseFrame):
-    FIELDS = ("payload", )
+    FIELDS = ("payload",)
 
     def __init__(self, payload: Union[bytes, BaseFrame]):
         self.payload = payload
@@ -133,7 +136,10 @@ class SimpleFrame(BaseFrame):
 
 
 class LengthFrame(BaseFrame):
-    FIELDS = ("length_field", "payload", )
+    FIELDS = (
+        "length_field",
+        "payload",
+    )
     LEN_FIELD = make_field("length", Unit.INT, repr_unit=Unit.INT)
 
     def __init__(self, payload: Union[bytes, BaseFrame]):
@@ -142,8 +148,8 @@ class LengthFrame(BaseFrame):
 
     @classmethod
     def from_bytes(cls, frame_bytes: bytes):
-        length_field = cls.LEN_FIELD(frame_bytes[:cls.LEN_FIELD.BYTE_LEN], Unit.BYTES)
-        payload = frame_bytes[cls.LEN_FIELD.BYTE_LEN:]
+        length_field = cls.LEN_FIELD(frame_bytes[: cls.LEN_FIELD.BYTE_LEN], Unit.BYTES)
+        payload = frame_bytes[cls.LEN_FIELD.BYTE_LEN :]
         if length_field.value != len(payload):
             raise FrameParseError(f"Length and Payload length do not match: {length_field.value=} {len(payload)=}")
         return cls(payload)

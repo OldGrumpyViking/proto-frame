@@ -1,4 +1,4 @@
-from proto_frame.core.frames import SimpleFrame, LengthFrame
+from proto_frame.core.frames import LengthFrame, SimpleFrame
 from proto_frame.core.protocols import BaseProtocol
 
 

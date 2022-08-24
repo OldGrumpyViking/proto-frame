@@ -1,5 +1,5 @@
-import enum
 import abc
+import enum
 
 
 class Order(enum.Enum):
@@ -59,7 +59,9 @@ def make_field(name: str, value_unit=Unit.BYTES, bit_len=8, bit_order=Order.BIG,
                 if to_unit == Unit.HEX:
                     value = value.hex().upper()
                 elif to_unit == Unit.BIN:
-                    value = format(int.from_bytes(value, byteorder=Field.BIT_ORDER.value, signed=Field.SIGNED), f"0{len(value)*8}b")
+                    value = format(
+                        int.from_bytes(value, byteorder=Field.BIT_ORDER.value, signed=Field.SIGNED), f"0{len(value)*8}b"
+                    )
                 elif to_unit == Unit.INT:
                     value = int.from_bytes(value, byteorder=Field.BIT_ORDER.value, signed=Field.SIGNED)
                 else:
@@ -72,7 +74,7 @@ def make_field(name: str, value_unit=Unit.BYTES, bit_len=8, bit_order=Order.BIG,
             else:
                 value = self._transform_unit(value, self.VALUE_UNIT, Unit.INT)
             if self.SIGNED:
-                if not (-2**self.BIT_LEN //2) <= value < (2**self.BIT_LEN // 2):
+                if not (-(2**self.BIT_LEN) // 2) <= value < (2**self.BIT_LEN // 2):
                     raise ValueError(f"{value=} not within {self.BIT_LEN=}")
             else:
                 if not 0 <= value < 2**self.BIT_LEN:
@@ -95,7 +97,9 @@ def make_field(name: str, value_unit=Unit.BYTES, bit_len=8, bit_order=Order.BIG,
                 if unit == Unit.BIN:
                     value = f"0b{value}"
             return value
+
     return Field
+
 
 if __name__ == "__main__":
     MyField = make_field("length", Unit.INT, repr_unit=Unit.INT)
@@ -106,7 +110,7 @@ if __name__ == "__main__":
     print(a.as_unit(Unit.HEX, prefix=True))
     print(a.value)
     # c = MyField(300)
-    d = [1,2,3]
+    d = [1, 2, 3]
     e = MyField(d.__len__)
     print(d, e)
     d.append(4)

@@ -36,7 +36,7 @@ class BaseProtocol:
             The protocol as bytes given the layer tier.
         """
         if layer is None:
-            layer = len(self.frames)-1
+            layer = len(self.frames) - 1
         if layer < 0:
             raise ValueError(f"layer cannot be negative. Got {layer=}")
         if layer >= len(self.frames):
@@ -83,6 +83,8 @@ class BaseProtocol:
             elif issubclass(layer, BaseFrame):
                 frame = layer.from_bytes(proto_bytes)
             else:
-                raise NotImplementedError(f"Only BaseFrames and tuples if size 2 allowed in traceback. Got {layer=}{type(layer)=}")
+                raise NotImplementedError(
+                    f"Only BaseFrames and tuples if size 2 allowed in traceback. Got {layer=}{type(layer)=}"
+                )
             frames.append(frame)
         return cls(frames[::-1])
